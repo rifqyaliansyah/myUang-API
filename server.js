@@ -4,6 +4,7 @@ const cors = require('cors')
 const env = require('./src/config/env')
 const authRoutes = require('./src/routes/auth.routes')
 const walletRoutes = require('./src/routes/wallet.routes')
+const pocketRoutes = require('./src/routes/pocket.routes')
 
 const app = express()
 
@@ -22,6 +23,7 @@ app.use(express.json())
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/wallets', walletRoutes)
+app.use('/api/pockets', pocketRoutes)
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
