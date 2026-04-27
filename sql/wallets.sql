@@ -4,6 +4,7 @@ CREATE TABLE wallets (
     name VARCHAR(100) NOT NULL,
     balance NUMERIC(15, 2) NOT NULL DEFAULT 0,
     is_active BOOLEAN DEFAULT FALSE,
+    qoutes TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

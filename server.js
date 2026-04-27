@@ -6,6 +6,7 @@ const authRoutes = require('./src/routes/auth.routes')
 const walletRoutes = require('./src/routes/wallet.routes')
 const pocketRoutes = require('./src/routes/pocket.routes')
 const goalRoutes = require('./src/routes/goal.route')
+const profileRouter = require('./src/routes/profile.route')
 
 const app = express()
 
@@ -26,6 +27,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/wallets', walletRoutes)
 app.use('/api/pockets', pocketRoutes)
 app.use('/api/goals', goalRoutes)
+app.use('/api/profile', profileRouter)
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
