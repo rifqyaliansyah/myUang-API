@@ -3,14 +3,25 @@ const express = require('express')
 const cors = require('cors')
 const env = require('./src/config/env')
 const authRoutes = require('./src/routes/auth.routes')
+const walletRoutes = require('./src/routes/wallet.routes')
 
 const app = express()
 
-app.use(cors())
+app.use(cors({
+    origin: [
+        'http://localhost:8100',
+        'https://bgdr3s45-8100.asse.devtunnels.ms',
+        'https://my-uang.vercel.app',
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
 app.use(express.json())
 
 // Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/wallets', walletRoutes)
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
