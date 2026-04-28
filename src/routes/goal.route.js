@@ -29,4 +29,19 @@ router.put('/:id',
 
 router.delete('/:id', controller.deleteGoal)
 
+router.post('/:id/topup',
+    [
+        body('wallet_id').optional({ nullable: true }).custom((val) => {
+            if (val === null || val === undefined) return true
+            if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+                throw new Error('wallet_id must be a valid UUID')
+            }
+            return true
+        }),
+        body('amount').isNumeric().withMessage('amount must be a number'),
+    ],
+    validate,
+    controller.topUpGoal
+)
+
 module.exports = router

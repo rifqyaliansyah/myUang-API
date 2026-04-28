@@ -39,4 +39,18 @@ const deleteGoal = async (req, res) => {
     }
 }
 
-module.exports = { getGoals, createGoal, updateGoal, deleteGoal }
+const topUpGoal = async (req, res) => {
+    try {
+        const { wallet_id, amount, note } = req.body
+        const result = await goalService.topUpGoal(req.user.userId, req.params.id, {
+            wallet_id: wallet_id || null,
+            amount,
+            note
+        })
+        return success(res, result, 'Goal topped up')
+    } catch (err) {
+        return error(res, err.message, err.statusCode || 500)
+    }
+}
+
+module.exports = { getGoals, createGoal, updateGoal, deleteGoal, topUpGoal }
