@@ -8,6 +8,7 @@ const pocketRoutes = require('./src/routes/pocket.routes')
 const goalRoutes = require('./src/routes/goal.route')
 const profileRouter = require('./src/routes/profile.route')
 const transactionRoutes = require('./src/routes/transaction.routes')
+const notificationRoutes = require('./src/routes/notification.route')
 
 const app = express()
 
@@ -30,6 +31,7 @@ app.use('/api/pockets', pocketRoutes)
 app.use('/api/goals', goalRoutes)
 app.use('/api/profile', profileRouter)
 app.use('/api/transactions', transactionRoutes)
+app.use('/api/notifications', notificationRoutes)
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }))

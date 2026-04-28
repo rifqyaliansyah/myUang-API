@@ -1,5 +1,6 @@
 const pool = require('../config/database')
 const AppError = require('../utils/AppError')
+const notificationService = require('./notification.service')
 
 const getTransactions = async (userId, { walletId, pocketId, month, year, type } = {}) => {
     let query = `
@@ -101,6 +102,36 @@ const createTransaction = async (userId, { wallet_id, pocket_id, type, amount, n
         )
 
         await client.query('COMMIT')
+
+        if (type === 'income') {
+            await notificationService.createNotification(userId, {
+                title: 'Income received',
+                body: `IDR ${Number(amount).toLocaleString('id-ID')} has been added to your wallet.`,
+                type: 'income'
+            })
+        }
+
+        if (type === 'expense' && pocket_id) {
+            const pocketRes = await pool.query('SELECT * FROM pockets WHERE id = $1', [pocket_id])
+            const pocket = pocketRes.rows[0]
+            if (pocket) {
+                const percent = (Number(pocket.used) / Number(pocket.budget_limit)) * 100
+                if (percent >= 100) {
+                    await notificationService.createNotification(userId, {
+                        title: `${pocket.emoji} ${pocket.name} is over budget!`,
+                        body: `You've exceeded your budget limit of IDR ${Number(pocket.budget_limit).toLocaleString('id-ID')}.`,
+                        type: 'pocket_over'
+                    })
+                } else if (percent >= 80) {
+                    await notificationService.createNotification(userId, {
+                        title: `${pocket.emoji} ${pocket.name} is almost full`,
+                        body: `You've used ${Math.floor(percent)}% of your budget limit.`,
+                        type: 'pocket_warning'
+                    })
+                }
+            }
+        }
+
         return result.rows[0]
     } catch (err) {
         await client.query('ROLLBACK')

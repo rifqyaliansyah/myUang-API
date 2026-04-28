@@ -1,5 +1,6 @@
 const pool = require('../config/database')
 const AppError = require('../utils/AppError')
+const notificationService = require('./notification.service')
 
 const getGoals = async (userId) => {
     const result = await pool.query(
@@ -64,8 +65,8 @@ const topUpGoal = async (userId, goalId, { wallet_id, amount, note }) => {
 
         await client.query(
             `INSERT INTO transactions (user_id, wallet_id, goal_id, type, amount, note, date)
-            VALUES ($1, $2, $3, 'goal_topup', $4, $5, CURRENT_DATE)`,
-            [userId, wallet_id || null, goalId, amount, note || null] // ← null, bukan fallback string
+             VALUES ($1, $2, $3, 'goal_topup', $4, $5, CURRENT_DATE)`,
+            [userId, wallet_id || null, goalId, amount, note || null]
         )
 
         const updatedGoal = await client.query(
@@ -75,7 +76,25 @@ const topUpGoal = async (userId, goalId, { wallet_id, amount, note }) => {
         )
 
         await client.query('COMMIT')
-        return updatedGoal.rows[0]
+
+        const updatedData = updatedGoal.rows[0]
+        const percent = (Number(updatedData.reached) / Number(updatedData.target_amount)) * 100
+
+        if (percent >= 100) {
+            await notificationService.createNotification(userId, {
+                title: `🎉 Goal "${updatedData.name}" completed!`,
+                body: `Congrats! You've reached your target of IDR ${Number(updatedData.target_amount).toLocaleString('id-ID')}.`,
+                type: 'goal_complete'
+            })
+        } else if (percent >= 80) {
+            await notificationService.createNotification(userId, {
+                title: `Goal "${updatedData.name}" almost there!`,
+                body: `You've reached ${Math.floor(percent)}% of your goal. Keep it up!`,
+                type: 'goal_progress'
+            })
+        }
+
+        return updatedData
     } catch (err) {
         await client.query('ROLLBACK')
         throw err
