@@ -3,9 +3,11 @@ const { success, error } = require('../utils/response.util')
 
 const getTransactions = async (req, res) => {
     try {
-        const { walletId, pocketId, month, year, type } = req.query
+        const { walletId, pocketId, goalId, month, year, type, limit = 10, offset = 0 } = req.query
         const result = await transactionService.getTransactions(req.user.userId, {
-            walletId, pocketId, month, year, type
+            walletId, pocketId, goalId, month, year, type,
+            limit: Number(limit),
+            offset: Number(offset),
         })
         return success(res, result, 'Transactions fetched')
     } catch (err) {

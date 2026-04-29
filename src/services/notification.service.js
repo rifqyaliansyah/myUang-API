@@ -1,9 +1,9 @@
 const pool = require('../config/database')
 
-const getNotifications = async (userId) => {
+const getNotifications = async (userId, { limit = 10, offset = 0 } = {}) => {
     const result = await pool.query(
-        'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC',
-        [userId]
+        'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+        [userId, limit, offset]
     )
     return result.rows
 }

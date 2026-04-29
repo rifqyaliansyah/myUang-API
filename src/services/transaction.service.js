@@ -2,7 +2,7 @@ const pool = require('../config/database')
 const AppError = require('../utils/AppError')
 const notificationService = require('./notification.service')
 
-const getTransactions = async (userId, { walletId, pocketId, month, year, type } = {}) => {
+const getTransactions = async (userId, { walletId, pocketId, goalId, month, year, type, limit = 10, offset = 0 } = {}) => {
     let query = `
         SELECT 
             t.*,
@@ -25,6 +25,10 @@ const getTransactions = async (userId, { walletId, pocketId, month, year, type }
         query += ` AND t.pocket_id = $${idx++}`
         params.push(pocketId)
     }
+    if (goalId) {
+        query += ` AND t.goal_id = $${idx++}`
+        params.push(goalId)
+    }
     if (month && year) {
         query += ` AND EXTRACT(MONTH FROM t.date) = $${idx++} AND EXTRACT(YEAR FROM t.date) = $${idx++}`
         params.push(month, year)
@@ -34,7 +38,9 @@ const getTransactions = async (userId, { walletId, pocketId, month, year, type }
         params.push(type)
     }
 
-    query += ' ORDER BY t.date DESC, t.created_at DESC'
+    query += ` ORDER BY t.date DESC, t.created_at DESC`
+    query += ` LIMIT $${idx++} OFFSET $${idx++}`
+    params.push(limit, offset)
 
     const result = await pool.query(query, params)
     return result.rows

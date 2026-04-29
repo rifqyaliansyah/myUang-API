@@ -3,7 +3,11 @@ const { success, error } = require('../utils/response.util')
 
 const getNotifications = async (req, res) => {
     try {
-        const result = await notificationService.getNotifications(req.user.userId)
+        const { limit = 10, offset = 0 } = req.query
+        const result = await notificationService.getNotifications(req.user.userId, {
+            limit: Number(limit),
+            offset: Number(offset),
+        })
         return success(res, result, 'Notifications fetched')
     } catch (err) {
         return error(res, err.message, err.statusCode || 500)
