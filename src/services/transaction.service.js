@@ -2,7 +2,7 @@ const pool = require('../config/database')
 const AppError = require('../utils/AppError')
 const notificationService = require('./notification.service')
 
-const getTransactions = async (userId, { walletId, pocketId, goalId, month, year, type, limit = 10, offset = 0 } = {}) => {
+const getTransactions = async (userId, { walletId, pocketId, goalId, month, year, type, startDate, endDate, limit = 10, offset = 0 } = {}) => {
     let query = `
         SELECT 
             t.*,
@@ -33,9 +33,18 @@ const getTransactions = async (userId, { walletId, pocketId, goalId, month, year
         query += ` AND EXTRACT(MONTH FROM t.date) = $${idx++} AND EXTRACT(YEAR FROM t.date) = $${idx++}`
         params.push(month, year)
     }
+    if (startDate) {
+        query += ` AND t.date >= $${idx++}`
+        params.push(startDate)
+    }
+    if (endDate) {
+        query += ` AND t.date <= $${idx++}`
+        params.push(endDate)
+    }
     if (type) {
-        query += ` AND t.type = $${idx++}`
-        params.push(type)
+        const types = Array.isArray(type) ? type : String(type).split(',').map(t => t.trim())
+        query += ` AND t.type = ANY($${idx++}::text[])`
+        params.push(types)
     }
 
     query += ` ORDER BY t.date DESC, t.created_at DESC`
