@@ -45,6 +45,11 @@ const register = async ({ name, email, password }) => {
 
     const user = result.rows[0]
 
+    await pool.query(
+        `INSERT INTO wallets (user_id, name, balance, is_active) VALUES ($1, $2, $3, $4)`,
+        [user.id, 'Main Wallet', 0, true]
+    )
+
     const tempToken = signTempToken({ userId: user.id, purpose: 'pin_verification' })
 
     return { user, tempToken }
@@ -142,6 +147,11 @@ const googleAuth = async (idToken) => {
         )
         user = inserted.rows[0]
         isNewUser = true
+
+        await pool.query(
+            `INSERT INTO wallets (user_id, name, balance, is_active) VALUES ($1, $2, $3, $4)`,
+            [user.id, 'Main Wallet', 0, true]
+        )
     } else {
         user = result.rows[0]
         if (!user.google_id) {
