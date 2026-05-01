@@ -1,6 +1,38 @@
 const pool = require('../config/database')
+const supabase = require('../config/supabase')
 const AppError = require('../utils/AppError')
 const notificationService = require('./notification.service')
+
+const BUCKET = process.env.SUPABASE_BUCKET || 'goals'
+
+const uploadImage = async (file, goalId) => {
+    const ext = file.originalname.split('.').pop()
+    const path = `${goalId}.${ext}`
+
+    const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true,
+        })
+
+    if (error) throw new AppError('Failed to upload image', 500)
+
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
+    return data.publicUrl
+}
+
+const deleteImage = async (imageUrl) => {
+    try {
+        const url = new URL(imageUrl)
+        const parts = url.pathname.split(`/${BUCKET}/`)
+        if (parts.length < 2) return
+        const path = parts[1]
+        await supabase.storage.from(BUCKET).remove([path])
+    } catch {
+        // silently fail, not critical
+    }
+}
 
 const getGoals = async (userId) => {
     const result = await pool.query(
@@ -10,31 +42,64 @@ const getGoals = async (userId) => {
     return result.rows
 }
 
-const createGoal = async (userId, { name, target_amount, description }) => {
+const createGoal = async (userId, { name, target_amount, description, file }) => {
     const result = await pool.query(
         `INSERT INTO goals (user_id, name, target_amount, description)
          VALUES ($1, $2, $3, $4) RETURNING *`,
         [userId, name, target_amount || 0, description || '']
     )
-    return result.rows[0]
+    let goal = result.rows[0]
+
+    if (file) {
+        const imageUrl = await uploadImage(file, goal.id)
+        const updated = await pool.query(
+            'UPDATE goals SET image_url = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+            [imageUrl, goal.id]
+        )
+        goal = updated.rows[0]
+    }
+
+    return goal
 }
 
-const updateGoal = async (userId, goalId, { name, target_amount, description }) => {
-    const result = await pool.query(
-        `UPDATE goals SET name = $1, target_amount = $2, description = $3, updated_at = NOW()
-         WHERE id = $4 AND user_id = $5 RETURNING *`,
-        [name, target_amount, description, goalId, userId]
+const updateGoal = async (userId, goalId, { name, target_amount, description, file }) => {
+    const existing = await pool.query(
+        'SELECT * FROM goals WHERE id = $1 AND user_id = $2',
+        [goalId, userId]
     )
-    if (!result.rows[0]) throw new AppError('Goal not found', 404)
+    if (!existing.rows[0]) throw new AppError('Goal not found', 404)
+
+    let imageUrl = existing.rows[0].image_url
+
+    if (file) {
+        if (imageUrl) await deleteImage(imageUrl)
+        imageUrl = await uploadImage(file, goalId)
+    }
+
+    const result = await pool.query(
+        `UPDATE goals
+         SET name = $1, target_amount = $2, description = $3, image_url = $4, updated_at = NOW()
+         WHERE id = $5 AND user_id = $6 RETURNING *`,
+        [name, target_amount, description, imageUrl, goalId, userId]
+    )
     return result.rows[0]
 }
 
 const deleteGoal = async (userId, goalId) => {
-    const result = await pool.query(
-        'DELETE FROM goals WHERE id = $1 AND user_id = $2 RETURNING id',
+    const existing = await pool.query(
+        'SELECT image_url FROM goals WHERE id = $1 AND user_id = $2',
         [goalId, userId]
     )
-    if (!result.rows[0]) throw new AppError('Goal not found', 404)
+    if (!existing.rows[0]) throw new AppError('Goal not found', 404)
+
+    if (existing.rows[0].image_url) {
+        await deleteImage(existing.rows[0].image_url)
+    }
+
+    await pool.query(
+        'DELETE FROM goals WHERE id = $1 AND user_id = $2',
+        [goalId, userId]
+    )
 }
 
 const topUpGoal = async (userId, goalId, { wallet_id, amount, note }) => {

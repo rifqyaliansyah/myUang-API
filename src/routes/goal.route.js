@@ -1,5 +1,6 @@
 const { Router } = require('express')
 const { body } = require('express-validator')
+const multer = require('multer')
 const controller = require('../controllers/goal.controller')
 const { validate } = require('../middlewares/validate.middleware')
 const { authenticate } = require('../middlewares/auth.middleware')
@@ -7,25 +8,23 @@ const { authenticate } = require('../middlewares/auth.middleware')
 const router = Router()
 router.use(authenticate)
 
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp']
+        if (!allowed.includes(file.mimetype)) {
+            return cb(new Error('Only JPEG, PNG, and WEBP images are allowed'))
+        }
+        cb(null, true)
+    },
+})
+
 router.get('/', controller.getGoals)
 
-router.post('/',
-    [
-        body('name').trim().notEmpty().withMessage('Goal name is required'),
-        body('target_amount').isNumeric().withMessage('Target amount must be a number'),
-    ],
-    validate,
-    controller.createGoal
-)
+router.post('/', upload.single('image'), controller.createGoal)
 
-router.put('/:id',
-    [
-        body('name').trim().notEmpty().withMessage('Goal name is required'),
-        body('target_amount').isNumeric().withMessage('Target amount must be a number'),
-    ],
-    validate,
-    controller.updateGoal
-)
+router.put('/:id', upload.single('image'), controller.updateGoal)
 
 router.delete('/:id', controller.deleteGoal)
 

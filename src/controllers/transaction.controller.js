@@ -1,5 +1,18 @@
+const multer = require('multer')
 const transactionService = require('../services/transaction.service')
 const { success, error } = require('../utils/response.util')
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp']
+        if (!allowed.includes(file.mimetype)) {
+            return cb(new Error('Only JPEG, PNG, and WEBP images are allowed'))
+        }
+        cb(null, true)
+    },
+})
 
 const getTransactions = async (req, res) => {
     try {
@@ -37,10 +50,14 @@ const getSummary = async (req, res) => {
 }
 
 const createTransaction = async (req, res) => {
+    console.log('content-type:', req.headers['content-type'])
+    console.log('req.file:', req.file)
+    console.log('req.body:', req.body)
     try {
         const { wallet_id, pocket_id, type, amount, note, date } = req.body
         const result = await transactionService.createTransaction(req.user.userId, {
-            wallet_id, pocket_id, type, amount, note, date
+            wallet_id, pocket_id, type, amount, note, date,
+            file: req.file || null,
         })
         return success(res, result, 'Transaction created', 201)
     } catch (err) {
@@ -57,4 +74,4 @@ const deleteTransaction = async (req, res) => {
     }
 }
 
-module.exports = { getTransactions, getSummary, createTransaction, deleteTransaction }
+module.exports = { getTransactions, getSummary, createTransaction, deleteTransaction, upload }

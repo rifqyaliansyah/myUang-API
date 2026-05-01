@@ -13,7 +13,12 @@ const getGoals = async (req, res) => {
 const createGoal = async (req, res) => {
     try {
         const { name, target_amount, description } = req.body
-        const result = await goalService.createGoal(req.user.userId, { name, target_amount, description })
+        const result = await goalService.createGoal(req.user.userId, {
+            name,
+            target_amount,
+            description,
+            file: req.file || null,
+        })
         return success(res, result, 'Goal created', 201)
     } catch (err) {
         return error(res, err.message, err.statusCode || 500)
@@ -23,7 +28,12 @@ const createGoal = async (req, res) => {
 const updateGoal = async (req, res) => {
     try {
         const { name, target_amount, description } = req.body
-        const result = await goalService.updateGoal(req.user.userId, req.params.id, { name, target_amount, description })
+        const result = await goalService.updateGoal(req.user.userId, req.params.id, {
+            name,
+            target_amount,
+            description,
+            file: req.file || null,
+        })
         return success(res, result, 'Goal updated')
     } catch (err) {
         return error(res, err.message, err.statusCode || 500)

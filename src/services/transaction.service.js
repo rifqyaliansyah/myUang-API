@@ -1,6 +1,37 @@
 const pool = require('../config/database')
+const supabase = require('../config/supabase')
 const AppError = require('../utils/AppError')
 const notificationService = require('./notification.service')
+
+const BUCKET = process.env.SUPABASE_BUCKET || 'transactions'
+
+const uploadImage = async (file, txId) => {
+    const ext = file.originalname.split('.').pop()
+    const path = `${txId}.${ext}`
+
+    const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true,
+        })
+
+    if (error) throw new AppError('Failed to upload image', 500)
+
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
+    return data.publicUrl
+}
+
+const deleteImage = async (imageUrl) => {
+    try {
+        const url = new URL(imageUrl)
+        const parts = url.pathname.split(`/${BUCKET}/`)
+        if (parts.length < 2) return
+        await supabase.storage.from(BUCKET).remove([parts[1]])
+    } catch {
+        // silently fail
+    }
+}
 
 const getTransactions = async (userId, { walletId, pocketId, goalId, month, year, type, startDate, endDate, limit = 10, offset = 0 } = {}) => {
     let query = `
@@ -81,7 +112,7 @@ const getSummary = async (userId, walletId, { month, year, startDate, endDate } 
     }
 }
 
-const createTransaction = async (userId, { wallet_id, pocket_id, type, amount, note, date }) => {
+const createTransaction = async (userId, { wallet_id, pocket_id, type, amount, note, date, file }) => {
     const client = await pool.connect()
     try {
         await client.query('BEGIN')
@@ -127,6 +158,18 @@ const createTransaction = async (userId, { wallet_id, pocket_id, type, amount, n
 
         await client.query('COMMIT')
 
+        let tx = result.rows[0]
+
+        // Upload image after commit so we have the tx id
+        if (file) {
+            const imageUrl = await uploadImage(file, tx.id)
+            const updated = await pool.query(
+                'UPDATE transactions SET image_url = $1 WHERE id = $2 RETURNING *',
+                [imageUrl, tx.id]
+            )
+            tx = updated.rows[0]
+        }
+
         if (type === 'income') {
             await notificationService.createNotification(userId, {
                 title: 'Income received',
@@ -156,7 +199,7 @@ const createTransaction = async (userId, { wallet_id, pocket_id, type, amount, n
             }
         }
 
-        return result.rows[0]
+        return tx
     } catch (err) {
         await client.query('ROLLBACK')
         throw err
@@ -177,6 +220,8 @@ const deleteTransaction = async (userId, transactionId) => {
         if (!txRes.rows[0]) throw new AppError('Transaction not found', 404)
 
         const tx = txRes.rows[0]
+
+        if (tx.image_url) await deleteImage(tx.image_url)
 
         if (tx.type === 'income') {
             await client.query(

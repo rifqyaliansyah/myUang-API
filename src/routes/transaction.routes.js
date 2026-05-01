@@ -11,6 +11,7 @@ router.get('/', controller.getTransactions)
 router.get('/summary', controller.getSummary)
 
 router.post('/',
+    controller.upload.single('image'),
     [
         body('wallet_id').notEmpty().withMessage('wallet_id is required'),
         body('type').isIn(['income', 'expense']).withMessage('type must be income or expense'),

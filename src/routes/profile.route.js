@@ -10,6 +10,7 @@ router.get('/', authenticate, controller.getProfile)
 
 router.put('/',
     authenticate,
+    controller.upload.single('avatar'),
     [
         body('name').trim().notEmpty().withMessage('Name is required'),
         body('quotes').optional().isString(),
