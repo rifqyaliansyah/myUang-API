@@ -55,17 +55,26 @@ const getTransactions = async (userId, { walletId, pocketId, goalId, month, year
     return result.rows
 }
 
-const getSummary = async (userId, walletId, month, year) => {
-    const result = await pool.query(
-        `SELECT
+const getSummary = async (userId, walletId, { month, year, startDate, endDate } = {}) => {
+    let query = `
+        SELECT
             SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS total_income,
             SUM(CASE WHEN type IN ('expense', 'goal_topup') THEN amount ELSE 0 END) AS total_expense
-         FROM transactions
-         WHERE user_id = $1 AND wallet_id = $2
-           AND EXTRACT(MONTH FROM date) = $3
-           AND EXTRACT(YEAR FROM date) = $4`,
-        [userId, walletId, month, year]
-    )
+        FROM transactions
+        WHERE user_id = $1 AND wallet_id = $2
+    `
+    const params = [userId, walletId]
+    let idx = 3
+
+    if (month && year) {
+        query += ` AND EXTRACT(MONTH FROM date) = $${idx++} AND EXTRACT(YEAR FROM date) = $${idx++}`
+        params.push(month, year)
+    } else if (startDate && endDate) {
+        query += ` AND date >= $${idx++} AND date <= $${idx++}`
+        params.push(startDate, endDate)
+    }
+
+    const result = await pool.query(query, params)
     return {
         total_income: Number(result.rows[0].total_income) || 0,
         total_expense: Number(result.rows[0].total_expense) || 0,

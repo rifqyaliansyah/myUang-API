@@ -22,11 +22,14 @@ const getTransactions = async (req, res) => {
 
 const getSummary = async (req, res) => {
     try {
-        const { walletId, month, year } = req.query
-        if (!walletId || !month || !year) {
-            return error(res, 'walletId, month, year are required', 400)
-        }
-        const result = await transactionService.getSummary(req.user.userId, walletId, month, year)
+        const { walletId, month, year, startDate, endDate } = req.query
+        if (!walletId) return error(res, 'walletId is required', 400)
+
+        const result = await transactionService.getSummary(
+            req.user.userId,
+            walletId,
+            { month, year, startDate, endDate }
+        )
         return success(res, result, 'Summary fetched')
     } catch (err) {
         return error(res, err.message, err.statusCode || 500)
