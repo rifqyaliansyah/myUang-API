@@ -39,6 +39,13 @@ router.post('/verify-pin',
     controller.verifyPin
 )
 
+router.post('/set-password',
+    authenticateTemp,
+    [body('password').isLength({ min: 8 }).withMessage('Password min 8 characters')],
+    validate,
+    controller.setPassword
+)
+
 router.post('/google',
     [body('idToken').notEmpty().withMessage('idToken required')],
     validate,

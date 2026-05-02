@@ -116,6 +116,25 @@ const verifyPin = async (userId, pin) => {
     return issueTokens(userId)
 }
 
+const setPassword = async (userId, password) => {
+    const result = await pool.query('SELECT password FROM users WHERE id = $1', [userId])
+    const user = result.rows[0]
+
+    if (!user) {
+        throw { statusCode: 404, message: 'User not found' }
+    }
+
+    if (user.password) {
+        throw { statusCode: 400, message: 'Password already set' }
+    }
+
+    const passwordHash = await hashValue(password)
+    await pool.query(
+        'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2',
+        [passwordHash, userId]
+    )
+}
+
 const googleAuth = async (idToken) => {
     let payload
     try {
@@ -131,7 +150,7 @@ const googleAuth = async (idToken) => {
     const { sub: googleId, email, name, picture } = payload
 
     let result = await pool.query(
-        'SELECT id, name, email, is_pin_set FROM users WHERE google_id = $1 OR email = $2',
+        'SELECT id, name, email, is_pin_set, password FROM users WHERE google_id = $1 OR email = $2',
         [googleId, email]
     )
 
@@ -142,7 +161,7 @@ const googleAuth = async (idToken) => {
         const inserted = await pool.query(
             `INSERT INTO users (name, email, google_id, avatar_url)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, name, email, is_pin_set`,
+       RETURNING id, name, email, is_pin_set, password`,
             [name, email, googleId, picture]
         )
         user = inserted.rows[0]
@@ -166,6 +185,7 @@ const googleAuth = async (idToken) => {
         tempToken,
         isNewUser,
         isPinSet: user.is_pin_set,
+        hasPassword: !!user.password,
     }
 }
 
@@ -228,6 +248,7 @@ module.exports = {
     login,
     setupPin,
     verifyPin,
+    setPassword,
     googleAuth,
     refreshAccessToken,
     logout,

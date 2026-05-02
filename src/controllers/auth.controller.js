@@ -41,6 +41,16 @@ const verifyPin = async (req, res) => {
     }
 }
 
+const setPassword = async (req, res) => {
+    try {
+        const { password } = req.body
+        await authService.setPassword(req.user.userId, password)
+        return success(res, null, 'Password set successfully')
+    } catch (err) {
+        return error(res, err.message, err.statusCode || 500)
+    }
+}
+
 const googleAuth = async (req, res) => {
     try {
         const { idToken } = req.body
@@ -81,4 +91,4 @@ const resume = async (req, res) => {
     }
 }
 
-module.exports = { register, login, setupPin, verifyPin, googleAuth, refresh, logout, resume, }
+module.exports = { register, login, setupPin, verifyPin, setPassword, googleAuth, refresh, logout, resume }
