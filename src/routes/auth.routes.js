@@ -93,4 +93,19 @@ router.post('/resume',
 
 router.post('/logout', authenticate, controller.logout)
 
+router.post('/forgot-password',
+    [body('email').isEmail().normalizeEmail().withMessage('Valid email required')],
+    validate,
+    controller.forgotPassword
+)
+
+router.post('/reset-password',
+    [
+        body('token').notEmpty().withMessage('Token is required'),
+        body('newPassword').isLength({ min: 8 }).withMessage('Password min 8 characters'),
+    ],
+    validate,
+    controller.resetPassword
+)
+
 module.exports = router

@@ -121,4 +121,29 @@ const resume = async (req, res) => {
     }
 }
 
-module.exports = { register, login, setupPin, verifyPin, verifyByPassword, setPassword, changePassword, changePin, googleAuth, refresh, logout, resume }
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body
+        await authService.forgotPassword(email)
+        // Selalu return sukses (jangan bocorkan apakah email terdaftar)
+        return success(res, null, 'If that email is registered, a reset link has been sent')
+    } catch (err) {
+        return error(res, err.message, err.statusCode || 500)
+    }
+}
+
+const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body
+        await authService.resetPassword(token, newPassword)
+        return success(res, null, 'Password reset successfully')
+    } catch (err) {
+        return error(res, err.message, err.statusCode || 500)
+    }
+}
+
+module.exports = {
+    register, login, setupPin, verifyPin, verifyByPassword,
+    setPassword, changePassword, changePin, googleAuth,
+    refresh, logout, resume, forgotPassword, resetPassword
+}

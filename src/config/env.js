@@ -2,7 +2,8 @@ require('dotenv').config()
 
 const required = [
   'DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
-  'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'GOOGLE_CLIENT_ID'
+  'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'GOOGLE_CLIENT_ID',
+  'MAILTRAP_USER', 'MAILTRAP_PASS'
 ]
 
 required.forEach((key) => {
@@ -31,4 +32,11 @@ module.exports = {
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
   },
+  mailtrap: {
+    host: process.env.MAILTRAP_HOST || 'sandbox.smtp.mailtrap.io',
+    port: Number(process.env.MAILTRAP_PORT) || 2525,
+    user: process.env.MAILTRAP_USER,
+    pass: process.env.MAILTRAP_PASS,
+  },
+  appUrl: process.env.APP_URL || 'http://localhost:5173',
 }

@@ -4,6 +4,7 @@ const { OAuth2Client } = require('google-auth-library')
 const pool = require('../config/database')
 const { signAccessToken, signRefreshToken, signTempToken } = require('../utils/jwt.util')
 const env = require('../config/env')
+const nodemailer = require('nodemailer')
 
 const googleClient = new OAuth2Client(env.google.clientId)
 
@@ -311,6 +312,95 @@ const resumeSession = async (refreshToken) => {
     return { tempToken }
 }
 
+const getMailTransporter = () => nodemailer.createTransport({
+    host: env.mailtrap.host,
+    port: env.mailtrap.port,
+    auth: {
+        user: env.mailtrap.user,
+        pass: env.mailtrap.pass,
+    },
+})
+
+const forgotPassword = async (email) => {
+    const result = await pool.query(
+        'SELECT id, name FROM users WHERE email = $1',
+        [email]
+    )
+
+    // Selalu return sukses meskipun email tidak ditemukan (security best practice)
+    if (result.rows.length === 0) return
+
+    const user = result.rows[0]
+
+    // Generate token random
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const tokenHash = hashToken(rawToken)
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 jam
+
+    // Hapus token lama kalau ada, simpan yang baru
+    await pool.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [user.id])
+    await pool.query(
+        'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+        [user.id, tokenHash, expiresAt]
+    )
+
+    const resetLink = `${env.appUrl}/reset-password?token=${rawToken}`
+
+    const transporter = getMailTransporter()
+    await transporter.sendMail({
+        from: '"MyUang" <noreply@myuang.app>',
+        to: email,
+        subject: 'Reset Your Password - MyUang',
+        html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2>Reset Your Password</h2>
+                <p>Hi ${user.name},</p>
+                <p>We received a request to reset your password. Click the button below to continue:</p>
+                <a href="${resetLink}" style="
+                    display: inline-block;
+                    background: #3077E3;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    margin: 16px 0;
+                ">Reset Password</a>
+                <p>This link will expire in 1 hour.</p>
+                <p>If you didn't request this, you can safely ignore this email.</p>
+            </div>
+        `,
+    })
+}
+
+const resetPassword = async (rawToken, newPassword) => {
+    const tokenHash = hashToken(rawToken)
+
+    const result = await pool.query(
+        `SELECT user_id FROM password_reset_tokens 
+         WHERE token_hash = $1 AND expires_at > NOW()`,
+        [tokenHash]
+    )
+
+    if (result.rows.length === 0) {
+        throw { statusCode: 400, message: 'Reset link is invalid or has expired' }
+    }
+
+    const { user_id } = result.rows[0]
+
+    const passwordHash = await hashValue(newPassword)
+    await pool.query(
+        'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2',
+        [passwordHash, user_id]
+    )
+
+    // Hapus token setelah dipakai
+    await pool.query('DELETE FROM password_reset_tokens WHERE token_hash = $1', [tokenHash])
+
+    // Logout semua sesi aktif untuk keamanan
+    await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [user_id])
+}
+
 module.exports = {
     register,
     login,
@@ -324,4 +414,6 @@ module.exports = {
     refreshAccessToken,
     logout,
     resumeSession,
+    forgotPassword,
+    resetPassword,
 }
