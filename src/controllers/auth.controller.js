@@ -41,11 +41,41 @@ const verifyPin = async (req, res) => {
     }
 }
 
+const verifyByPassword = async (req, res) => {
+    try {
+        const { password } = req.body
+        const tokens = await authService.verifyByPassword(req.user.userId, password)
+        return success(res, tokens, 'Password verified')
+    } catch (err) {
+        return error(res, err.message, err.statusCode || 500)
+    }
+}
+
 const setPassword = async (req, res) => {
     try {
         const { password } = req.body
         await authService.setPassword(req.user.userId, password)
         return success(res, null, 'Password set successfully')
+    } catch (err) {
+        return error(res, err.message, err.statusCode || 500)
+    }
+}
+
+const changePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body
+        await authService.changePassword(req.user.userId, oldPassword, newPassword)
+        return success(res, null, 'Password changed successfully')
+    } catch (err) {
+        return error(res, err.message, err.statusCode || 500)
+    }
+}
+
+const changePin = async (req, res) => {
+    try {
+        const { oldPin, newPin } = req.body
+        await authService.changePin(req.user.userId, oldPin, newPin)
+        return success(res, null, 'PIN changed successfully')
     } catch (err) {
         return error(res, err.message, err.statusCode || 500)
     }
@@ -91,4 +121,4 @@ const resume = async (req, res) => {
     }
 }
 
-module.exports = { register, login, setupPin, verifyPin, setPassword, googleAuth, refresh, logout, resume }
+module.exports = { register, login, setupPin, verifyPin, verifyByPassword, setPassword, changePassword, changePin, googleAuth, refresh, logout, resume }

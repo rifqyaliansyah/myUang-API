@@ -39,11 +39,38 @@ router.post('/verify-pin',
     controller.verifyPin
 )
 
+router.post('/verify-by-password',
+    authenticateTemp,
+    [body('password').notEmpty().withMessage('Password is required')],
+    validate,
+    controller.verifyByPassword
+)
+
 router.post('/set-password',
     authenticateTemp,
     [body('password').isLength({ min: 8 }).withMessage('Password min 8 characters')],
     validate,
     controller.setPassword
+)
+
+router.post('/change-password',
+    authenticate,
+    [
+        body('oldPassword').notEmpty().withMessage('Old password is required'),
+        body('newPassword').isLength({ min: 8 }).withMessage('New password min 8 characters'),
+    ],
+    validate,
+    controller.changePassword
+)
+
+router.post('/change-pin',
+    authenticate,
+    [
+        body('oldPin').isLength({ min: 4, max: 4 }).isNumeric().withMessage('Old PIN must be 4 digits'),
+        body('newPin').isLength({ min: 4, max: 4 }).isNumeric().withMessage('New PIN must be 4 digits'),
+    ],
+    validate,
+    controller.changePin
 )
 
 router.post('/google',

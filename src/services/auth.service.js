@@ -135,6 +135,74 @@ const setPassword = async (userId, password) => {
     )
 }
 
+const verifyByPassword = async (userId, password) => {
+    const result = await pool.query('SELECT password FROM users WHERE id = $1', [userId])
+    const user = result.rows[0]
+
+    if (!user) {
+        throw { statusCode: 404, message: 'User not found' }
+    }
+
+    if (!user.password) {
+        throw { statusCode: 400, message: 'This account has no password set' }
+    }
+
+    const isValid = await compareValue(password, user.password)
+    if (!isValid) {
+        throw { statusCode: 401, message: 'Incorrect password' }
+    }
+
+    return issueTokens(userId)
+}
+
+const changePassword = async (userId, oldPassword, newPassword) => {
+    const result = await pool.query('SELECT password FROM users WHERE id = $1', [userId])
+    const user = result.rows[0]
+
+    if (!user) {
+        throw { statusCode: 404, message: 'User not found' }
+    }
+
+    if (!user.password) {
+        throw { statusCode: 400, message: 'This account uses Google login' }
+    }
+
+    const isValid = await compareValue(oldPassword, user.password)
+    if (!isValid) {
+        throw { statusCode: 401, message: 'Old password is incorrect' }
+    }
+
+    const passwordHash = await hashValue(newPassword)
+    await pool.query(
+        'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2',
+        [passwordHash, userId]
+    )
+}
+
+const changePin = async (userId, oldPin, newPin) => {
+    const result = await pool.query('SELECT pin FROM users WHERE id = $1', [userId])
+    const user = result.rows[0]
+
+    if (!user) {
+        throw { statusCode: 404, message: 'User not found' }
+    }
+
+    if (!user.pin) {
+        throw { statusCode: 400, message: 'PIN not set' }
+    }
+
+    const isValid = await compareValue(oldPin, user.pin)
+    if (!isValid) {
+        throw { statusCode: 401, message: 'Old PIN is incorrect' }
+    }
+
+    const pinHash = await hashValue(newPin)
+    await pool.query(
+        'UPDATE users SET pin = $1, updated_at = NOW() WHERE id = $2',
+        [pinHash, userId]
+    )
+}
+
 const googleAuth = async (idToken) => {
     let payload
     try {
@@ -248,7 +316,10 @@ module.exports = {
     login,
     setupPin,
     verifyPin,
+    verifyByPassword,
     setPassword,
+    changePassword,
+    changePin,
     googleAuth,
     refreshAccessToken,
     logout,
